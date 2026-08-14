@@ -139,6 +139,9 @@
     "demo:acp": "node --import tsx packages/examples/acp-demo/src/bin.ts --config examples/acp-agent/cordis.yml",
     "mock:llm": "node --import tsx packages/test-support/llm-mock-server/src/bin.ts",
     "dev:web": "tsx scripts/dev-web.ts --poll",
+    "desktop:dev": "pnpm run build && pnpm --config.verify-deps-before-run=false --filter @fireworks-chen/dsh-desktop run dev",
+    "desktop:pack:mac": "pnpm run build && pnpm --config.verify-deps-before-run=false --filter @fireworks-chen/dsh-desktop run pack:mac",
+    "desktop:dist:mac": "pnpm run build && pnpm --config.verify-deps-before-run=false --filter @fireworks-chen/dsh-desktop run dist:mac",
     "postinstall": "node scripts/install-lefthook.mjs"
   },
   "devDependencies": {

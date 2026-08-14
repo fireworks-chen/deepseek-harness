@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Agent Studio</title>
+  <rect width="512" height="512" rx="96" fill="#17191c"/>
+  <path d="M112 330 220 110h74L186 330z" fill="#ffffff"/>
+  <path d="m238 330 83-169h79l-84 169z" fill="#36d6c4"/>
+  <path d="M112 366h288" fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="32"/>
+</svg>

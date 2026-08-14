@@ -62,6 +62,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`js-yaml`](https://github.com/nodeca/js-yaml) | MIT |
 | [`katex`](https://github.com/KaTeX/KaTeX) | MIT |
 | [`koffi`](https://github.com/Koromix/koffi) | MIT |
+| [`lucide-react`](https://github.com/lucide-icons/lucide) | ISC |
 | [`mdast-util-from-markdown`](https://github.com/syntax-tree/mdast-util-from-markdown) | MIT |
 | [`mdast-util-gfm`](https://github.com/syntax-tree/mdast-util-gfm) | MIT |
 | [`mdast-util-math`](https://github.com/syntax-tree/mdast-util-math) | MIT |
@@ -143,6 +144,8 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`cytoscape-cose-bilkent`](https://github.com/cytoscape/cytoscape.js-cose-bilkent) | MIT |
 | [`dayjs`](https://github.com/iamkun/dayjs) | MIT |
 | [`debug`](https://github.com/debug-js/debug) | MIT |
+| [`electron`](https://github.com/electron/electron) | MIT |
+| [`electron-builder`](https://github.com/electron-userland/electron-builder) | MIT |
 | [`esbuild`](https://github.com/evanw/esbuild) | MIT |
 | [`eslint-plugin-sonarjs`](https://github.com/SonarSource/SonarJS) | LGPL-3.0-only |
 | [`execa`](https://github.com/sindresorhus/execa) | MIT |

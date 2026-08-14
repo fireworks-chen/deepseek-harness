@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "src",
+    "electron-builder.config.mjs",
+    "tsdown.config.ts",
+    "vite.config.ts"
+  ]
+}
