@@ -4,7 +4,7 @@
 // ConversationRoot so the textarea survives the hero → composer flip); CSS
 // positions it over this shell's glow area during the hero phase.
 
-import { useId } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import {
   FishLogo, IconChevronDownOutline14, IconFolderClose16, IconFolderOpen16,
@@ -15,6 +15,34 @@ import css from './HeroShell.module.css'
 
 /** The owner's locale seat type, passed to hero chrome as a plain prop. */
 type HeroTranslate = ConversationSlotProps['t']
+
+interface DesktopBrandBridge {
+  bootstrap(): Promise<{ brand: { logoDataUrl: string } }>
+}
+
+function desktopBrandBridge(): DesktopBrandBridge | undefined {
+  return (window as Window & { desktop?: DesktopBrandBridge }).desktop
+}
+
+function HeroBrandLogo() {
+  const [logoDataUrl, setLogoDataUrl] = useState<string>()
+
+  useEffect(() => {
+    const bridge = desktopBrandBridge()
+    if (bridge === undefined) return
+    let mounted = true
+    void bridge.bootstrap().then(({ brand }) => {
+      if (mounted) setLogoDataUrl(brand.logoDataUrl)
+    }).catch(() => {
+      // The built-in mark remains visible when desktop branding is unavailable.
+    })
+    return () => { mounted = false }
+  }, [])
+
+  return logoDataUrl === undefined
+    ? <FishLogo size={34} className={css.fish} />
+    : <img src={logoDataUrl} className={css.brandLogo} alt="" />
+}
 
 /**
  * Basename label for the workspace chip (the shared derivation);
@@ -117,12 +145,10 @@ export function HeroShell({ t, children }: HeroShellProps) {
     <div className={css.root}>
       <div className={css.stack}>
         <div className={css.headline}>
-          {/* figma 34:10412: fish 34×25 leading the headline, gap 10. */}
-          <span className={css.fishHitbox}>
-            <FishLogo size={34} className={css.fish} />
+          <span className={css.logoHitbox}>
+            <HeroBrandLogo />
           </span>
           <span className={css.headlineText}>{t('hero.headline')}</span>
-          <span className={css.previewBadge}>{t('hero.preview')}</span>
         </div>
         <div className={css.body}>
           {/* The resident composer (ConversationRoot's root-owned scrollport;

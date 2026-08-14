@@ -2,12 +2,13 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const target = join(root, 'apps', 'desktop', 'dist', 'backend')
+const workspaceStatePath = join(root, 'node_modules', '.pnpm-workspace-state-v1.json')
 
 async function run(command: string, args: string[]): Promise<void> {
   await new Promise<void>((resolvePromise, reject) => {
@@ -31,6 +32,27 @@ async function capture(command: string, args: string[]): Promise<string> {
       else reject(new Error(`command failed (${signal ?? String(code)}): ${command} ${args.join(' ')}`))
     })
   })
+}
+
+async function deployProductionBackend(staging: string): Promise<void> {
+  // pnpm deploy records its --prod selection in the source workspace state.
+  // Restore that generated file so a later pnpm run does not prune dev tools.
+  const previousWorkspaceState = existsSync(workspaceStatePath)
+    ? await readFile(workspaceStatePath)
+    : undefined
+  try {
+    await run(process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm', [
+      '--filter', '@deepseek-ai/dsh',
+      'deploy', '--legacy', '--prod',
+      '--config.node-linker=isolated',
+      '--config.auto-install-peers=false',
+      '--config.link-workspace-packages=true',
+      staging,
+    ])
+  } finally {
+    if (previousWorkspaceState === undefined) await rm(workspaceStatePath, { force: true })
+    else await writeFile(workspaceStatePath, previousWorkspaceState)
+  }
 }
 
 interface PackageManifest {
@@ -126,14 +148,7 @@ async function main(): Promise<void> {
   }
   const staging = await mkdtemp(join(tmpdir(), 'dsh-desktop-backend-'))
   try {
-    await run(process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm', [
-      '--filter', '@deepseek-ai/dsh',
-      'deploy', '--legacy', '--prod',
-      '--config.node-linker=isolated',
-      '--config.auto-install-peers=false',
-      '--config.link-workspace-packages=true',
-      staging,
-    ])
+    await deployProductionBackend(staging)
     const nodeModules = join(staging, 'node_modules')
     if (existsSync(nodeModules)) {
       await ensureWorkspaceDependencyClosure(nodeModules)

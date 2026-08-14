@@ -1,0 +1,7 @@
+# Desktop-only product surface: keep chat as the sole conversation view and
+# omit the session-log download utility from the installed application.
+- id: session-log-download
+  disabled: true
+
+- id: ui-trajectory
+  disabled: true

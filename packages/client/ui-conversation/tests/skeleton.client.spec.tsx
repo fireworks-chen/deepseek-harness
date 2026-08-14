@@ -3,7 +3,7 @@
 // hero (blank session) and active phases — same textarea DOM node, machine-
 // owned draft, and the hero workspace picker (switching = retargetWorkspace).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
 import {
   createSnapshotStore, EMPTY_CHAT_SNAPSHOT, EMPTY_CONVERSATION_VIEWS,
@@ -258,10 +258,30 @@ function mount(
 }
 
 describe('Hero chrome', () => {
-  it('renders the English preview badge through the hero locale seat', () => {
+  it('renders the English product headline without a preview badge', () => {
     const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
-    expect(view.getByText('Into the Unknown')).toBeTruthy()
-    expect(view.getByText('Preview')).toBeTruthy()
+    expect(view.getByText('Your Professional Foreign Trade Assistant')).toBeTruthy()
+    expect(view.queryByText('Preview')).toBeNull()
+  })
+
+  it('renders the configured desktop logo', async () => {
+    const bootstrap = vi.fn(async () => ({ brand: { logoDataUrl: 'data:image/png;base64,brand' } }))
+    vi.stubGlobal('desktop', { bootstrap })
+    const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+
+    await waitFor(() => {
+      expect(view.container.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,brand')
+    })
+    expect(bootstrap).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the built-in logo when desktop branding fails', async () => {
+    const bootstrap = vi.fn(async () => await Promise.reject(new Error('unavailable')))
+    vi.stubGlobal('desktop', { bootstrap })
+    const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+
+    await waitFor(() => { expect(bootstrap).toHaveBeenCalledOnce() })
+    expect(view.container.querySelector('img')).toBeNull()
   })
 })
 
@@ -362,8 +382,8 @@ describe('ConversationRoot resident composer', () => {
     const header = b.view.container.querySelector('header')
     expect(host).not.toBeNull()
     expect(header?.getAttribute('aria-hidden')).toBe('true')
-    expect(b.view.getByText('探索未至之境')).toBeTruthy()
-    expect(b.view.getByText('预览版')).toBeTruthy()
+    expect(b.view.getByText('你的专业外贸助理')).toBeTruthy()
+    expect(b.view.queryByText('预览版')).toBeNull()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
     // persistence mirror stays bound (ConversationSession mounts chrome-hidden
@@ -386,7 +406,7 @@ describe('ConversationRoot resident composer', () => {
     const b = mount(conversationSnapshot({ composerPhase: 'blank', blank: true, openState: 'loading' }))
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('settling')
-    expect(b.view.queryByText('探索未至之境')).toBeNull()
+    expect(b.view.queryByText('你的专业外贸助理')).toBeNull()
   })
 
   it('settling phase: a session the list has no row for settles conservatively', () => {
@@ -411,7 +431,7 @@ describe('ConversationRoot resident composer', () => {
     // blank the column for the history round-trip.
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('hero')
-    expect(b.view.getByText('探索未至之境')).toBeTruthy()
+    expect(b.view.getByText('你的专业外贸助理')).toBeTruthy()
     expect(b.view.getByRole('textbox')).toBeTruthy()
   })
 
@@ -429,7 +449,7 @@ describe('ConversationRoot resident composer', () => {
     expect(after.value).toBe('kept across flip')
     expect(b.chat.store.getSnapshot().draft).toBe('kept across flip')
     expect(b.view.container.querySelector('[data-conversation-scroll]')?.contains(after)).toBe(true)
-    expect(b.view.queryByText('探索未至之境')).toBeNull()
+    expect(b.view.queryByText('你的专业外贸助理')).toBeNull()
     expect(b.view.getByTestId('view-chat')).toBeTruthy()
   })
 

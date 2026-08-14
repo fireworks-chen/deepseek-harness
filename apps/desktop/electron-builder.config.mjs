@@ -22,6 +22,7 @@ export default {
   ],
   extraResources: [
     { from: 'desktop.config.json', to: 'desktop.config.json' },
+    { from: 'desktop.cordis.patch.yml', to: 'desktop.cordis.patch.yml' },
     { from: 'assets', to: 'assets' },
   ],
   afterPack: async (context) => {

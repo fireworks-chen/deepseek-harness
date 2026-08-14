@@ -14,6 +14,9 @@ const packageRoot = fileURLToPath(new URL('..', import.meta.url))
 const configPath = app.isPackaged
   ? join(process.resourcesPath, 'desktop.config.json')
   : join(packageRoot, 'desktop.config.json')
+const patchPath = app.isPackaged
+  ? join(process.resourcesPath, 'desktop.cordis.patch.yml')
+  : join(packageRoot, 'desktop.cordis.patch.yml')
 const config = loadDesktopConfig(configPath)
 const brand = publicBrand(config, configPath)
 const auth = new MockAuthProvider(config.auth.mock)
@@ -86,6 +89,7 @@ async function showWorkspace(activeSession: AuthSession): Promise<void> {
   const url = await backend.start({
     electronExecutable: process.execPath,
     binPath: backendBin(),
+    patchPath,
     dshHome,
     accessToken: activeSession.accessToken,
     onUnexpectedExit: (message) => {

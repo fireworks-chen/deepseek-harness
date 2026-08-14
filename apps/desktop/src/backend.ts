@@ -10,9 +10,24 @@ const STARTUP_TIMEOUT_MS = 60_000
 export interface BackendLaunchOptions {
   electronExecutable: string
   binPath: string
+  patchPath: string
   dshHome: string
   accessToken: string
   onUnexpectedExit(message: string): void
+}
+
+export function backendArgv(options: Pick<BackendLaunchOptions, 'binPath' | 'patchPath'>): string[] {
+  return [
+    '--expose-internals',
+    options.binPath,
+    'web',
+    '--patch',
+    options.patchPath,
+    '--host',
+    '127.0.0.1',
+    '--port',
+    '0',
+  ]
 }
 
 export class HarnessBackend {
@@ -26,8 +41,11 @@ export class HarnessBackend {
     if (!existsSync(options.binPath)) {
       throw new Error(`desktop backend entry is missing: ${options.binPath}`)
     }
+    if (!existsSync(options.patchPath)) {
+      throw new Error(`desktop backend patch is missing: ${options.patchPath}`)
+    }
     this.stopping = false
-    const child = spawn(options.electronExecutable, ['--expose-internals', options.binPath, 'web', '--host', '127.0.0.1', '--port', '0'], {
+    const child = spawn(options.electronExecutable, backendArgv(options), {
       cwd: homedir(),
       env: {
         ...process.env,

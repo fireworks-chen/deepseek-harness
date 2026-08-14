@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
 import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import { PermissionRow, type PermissionRowProps } from '../src/client/PermissionRow.tsx'
-import { en } from '../src/client/locales.ts'
+import { en, zh } from '../src/client/locales.ts'
 import { PermissionPresetSettingsController } from '../src/client/settings-store.ts'
 
 afterEach(cleanup)
@@ -36,14 +36,16 @@ function ok<T>(value: T) {
   return { rpcId: 'test', result: { ok: true as const, value } }
 }
 
-const dictionary: Record<string, string> = en
-const t: PermissionRowProps['t'] = key => dictionary[key] ?? key
 const runtime = {
   useSessions: (() => { throw new Error('unused') }) as never,
   useWorkspaces: (() => { throw new Error('unused') }) as never,
 }
 
-function mount(controller: PermissionPresetSettingsController) {
+function mount(
+  controller: PermissionPresetSettingsController,
+  dictionary: Record<string, string> = en,
+) {
+  const t: PermissionRowProps['t'] = key => dictionary[key] ?? key
   return render(
     <PermissionRow
       {...runtime}
@@ -81,6 +83,24 @@ describe('PermissionRow', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Workspace Write' }))
     await screen.findByRole('button', { name: 'Workspace Write' })
     expect(mutate).toHaveBeenCalledOnce()
+  })
+
+  it('localizes built-in preset labels in Chinese', async () => {
+    const controller = new PermissionPresetSettingsController({
+      settings: {
+        describe: () => Promise.resolve(ok({
+          writable: true,
+          hasDocument: false,
+          namespaces: [view('workspace-write')],
+        })),
+        mutate: vi.fn(),
+      } as never,
+    })
+    mount(controller, zh)
+    const button = await screen.findByRole('button', { name: '工作区写入' })
+    fireEvent.click(button)
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent))
+      .toEqual(['只读', '工作区写入', '完全访问'])
   })
 
   it('requires explicit acknowledgement before saving Full access', async () => {

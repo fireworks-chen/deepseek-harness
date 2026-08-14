@@ -20,7 +20,7 @@
 - button "Settings":
   - img
   - text: Settings
-- text: Into the Unknown Preview
+- text: Your Professional Foreign Trade Assistant
 - button "Choose workspace":
   - img
   - text: workspace

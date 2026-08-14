@@ -32,11 +32,11 @@ const SELECT: PermissionSelect = {
   currentValue: 'workspace-write',
 }
 
-async function bench() {
+async function bench(language: 'en' | 'zh' = 'en') {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry)
   const locale = new LocaleRuntime(ctx)
-  locale.setLocale('en')
+  locale.setLocale(language)
   ctx.provide('locale', locale)
   // The plugin injects `remote`; forwarded events reach it through the same
   // `$dispatch` handoff the connection sink makes.
@@ -141,6 +141,19 @@ describe('ui-permission browser plugin', () => {
     // A projection that vanished between availability and open throws.
     expect(() => c.ui.options({ sessionId: sid('ghost') }, new AbortController().signal))
       .toThrow(/not available on this host/)
+  })
+
+  it('localizes the standard popup labels in Chinese', async () => {
+    const b = await bench('zh')
+    const c = b.decoration()!
+    const proj = { sessionId: sid('s1') }
+    b.values.set(sid('s1'), SELECT)
+    const options = await c.ui.options(proj, new AbortController().signal)
+    expect(options.map(option => option.label)).toEqual(['只读', '工作区写入', '完全访问'])
+    expect(options.find(option => option.id === 'danger-full-access')?.confirmation).toMatchObject({
+      title: '确认启用完全访问？',
+      confirmLabel: '启用完全访问',
+    })
   })
 
   it('a pick submits the /permission line; rejection and unmatched throw', async () => {
