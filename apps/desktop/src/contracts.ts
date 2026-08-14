@@ -9,6 +9,9 @@ export interface PublicUser {
   id: string
   email: string
   displayName: string
+  company: string
+  avatarUrl?: string
+  coins: number
   plan: string
   permissions: PermissionSet
 }
@@ -18,6 +21,7 @@ export interface PublicBrand {
   displayName: string
   tagline: string
   logoDataUrl: string
+  defaultAvatarDataUrl: string
   accentColor: string
   supportEmail: string
   authMode: 'mock'
@@ -27,6 +31,11 @@ export interface PublicBrand {
 
 export interface DesktopBootstrap {
   brand: PublicBrand
+}
+
+export interface DesktopAccountSnapshot {
+  user: PublicUser
+  defaultAvatarDataUrl: string
 }
 
 export interface LoginInput {
@@ -42,4 +51,6 @@ export type LoginResult =
 export interface DesktopBridge {
   bootstrap(): Promise<DesktopBootstrap>
   login(input: LoginInput): Promise<LoginResult>
+  account(): Promise<DesktopAccountSnapshot | undefined>
+  logout(): Promise<void>
 }

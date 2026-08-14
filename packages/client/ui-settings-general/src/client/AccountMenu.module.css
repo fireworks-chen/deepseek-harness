@@ -1,0 +1,200 @@
+.root {
+  position: relative;
+  width: 100%;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% + 8px);
+  height: 48px;
+  margin: 4px -4px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.railTrigger {
+  width: 36px;
+  height: 36px;
+  margin: 8px 0 10px;
+  padding: 3px;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.triggerAvatar,
+.identityAvatar {
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.triggerAvatar {
+  width: 30px;
+  height: 30px;
+}
+
+.identityAvatar {
+  width: 42px;
+  height: 42px;
+}
+
+.triggerName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.chevron {
+  flex: none;
+  transition: transform var(--ds-transition-duration-fast) var(--ds-ease-in-out);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.menu {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 80;
+  width: 100%;
+  min-width: 240px;
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-shadow-lv3);
+}
+
+.railMenu {
+  position: fixed;
+  left: 10px;
+  bottom: 62px;
+  width: 280px;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  background: var(--dsw-specific-sidebar-nav-item-active);
+}
+
+.identityText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.identityText strong,
+.identityText span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.identityText strong {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.identityText span {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.items {
+  padding: 8px;
+}
+
+.infoRow,
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+}
+
+.actionRow {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.actionRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.actionRow:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.infoRow > svg,
+.actionRow > svg {
+  flex: none;
+}
+
+.coinCount {
+  margin-left: auto;
+  color: var(--dsw-alias-label-primary-bluish);
+}
+
+.divider {
+  height: 1px;
+  margin: 6px 10px;
+  background: var(--dsw-alias-border-l1);
+}
+
+.error {
+  margin: 4px 10px 2px 36px;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

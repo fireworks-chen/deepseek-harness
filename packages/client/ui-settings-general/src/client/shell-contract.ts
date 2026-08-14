@@ -12,6 +12,7 @@ import type { HostObservable, InjectFace, PropsRenderSlots, PropsRuntime } from 
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 // Type-only: pulls the settings slot declarations the shell renders into.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SettingsKey } from './locales.ts'
 
 /** One nav row projected from a settings.section registration's options. */
 export interface SettingsSectionRow {
@@ -26,12 +27,29 @@ export interface SettingsOnboardingStep {
   order: number
 }
 
+/** Account fields exposed by the trusted Electron preload bridge. */
+export interface DesktopAccountSnapshot {
+  user: {
+    displayName: string
+    company: string
+    avatarUrl?: string
+    coins: number
+  }
+  defaultAvatarDataUrl: string
+}
+
 /**
  * Registrant-private injected share of the settings shell (assembled in
  * apply): the ledger's nav-row projection as a hooks-compartment source —
  * the shell reads no locale state and subscribes through the bound hook.
  */
 export type SettingsRootInjected = {
+  /** Locale-following copy for the Electron-only account menu. */
+  accountText: (key: SettingsKey) => string
+  /** Load the signed-in Electron account; absent in an ordinary browser. */
+  loadDesktopAccount?: () => Promise<DesktopAccountSnapshot | undefined>
+  /** End the Electron session and return the window to its local login page. */
+  logoutDesktop?: () => Promise<void>
   hooks: {
     /** settings.section ledger projected into ordered nav rows. */
     sections: HostObservable<readonly SettingsSectionRow[]>

@@ -6,6 +6,9 @@ export interface MockAuthConfig {
   email: string
   password: string
   displayName: string
+  company: string
+  avatarUrl?: string
+  coins: number
   plan: string
   permissions: PermissionSet
 }
@@ -16,6 +19,7 @@ export interface DesktopConfig {
   displayName: string
   tagline: string
   logo: string
+  defaultAvatar: string
   appIcon: string
   accentColor: string
   supportEmail: string
@@ -43,6 +47,23 @@ function stringArray(record: Record<string, unknown>, key: string): string[] {
   return items.map(item => item as string)
 }
 
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key]
+  if (value === undefined || value === '') return undefined
+  if (typeof value !== 'string') {
+    throw new Error(`desktop config: auth.mock.${key} must be a string`)
+  }
+  return value
+}
+
+function nonNegativeInteger(record: Record<string, unknown>, key: string, owner: string): number {
+  const value = record[key]
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`desktop config: ${owner}.${key} must be a non-negative integer`)
+  }
+  return value
+}
+
 function object(value: unknown, owner: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error(`desktop config: ${owner} must be an object`)
@@ -58,6 +79,7 @@ export function loadDesktopConfig(configPath: string): DesktopConfig {
   }
   const mock = object(auth.mock, 'auth.mock')
   const permissions = object(mock.permissions, 'auth.mock.permissions')
+  const avatarUrl = optionalString(mock, 'avatarUrl')
   const accentColor = requiredString(root, 'accentColor', 'root')
   if (!/^#[0-9a-f]{6}$/i.test(accentColor)) {
     throw new Error('desktop config: accentColor must be a six-digit hex color')
@@ -68,6 +90,7 @@ export function loadDesktopConfig(configPath: string): DesktopConfig {
     displayName: requiredString(root, 'displayName', 'root'),
     tagline: requiredString(root, 'tagline', 'root'),
     logo: requiredString(root, 'logo', 'root'),
+    defaultAvatar: requiredString(root, 'defaultAvatar', 'root'),
     appIcon: requiredString(root, 'appIcon', 'root'),
     accentColor,
     supportEmail: requiredString(root, 'supportEmail', 'root'),
@@ -78,6 +101,9 @@ export function loadDesktopConfig(configPath: string): DesktopConfig {
         email: requiredString(mock, 'email', 'auth.mock'),
         password: requiredString(mock, 'password', 'auth.mock'),
         displayName: requiredString(mock, 'displayName', 'auth.mock'),
+        company: requiredString(mock, 'company', 'auth.mock'),
+        ...avatarUrl === undefined ? {} : { avatarUrl },
+        coins: nonNegativeInteger(mock, 'coins', 'auth.mock'),
         plan: requiredString(mock, 'plan', 'auth.mock'),
         permissions: {
           models: stringArray(permissions, 'models'),
@@ -107,12 +133,15 @@ export function resolveConfiguredPath(configPath: string, configuredPath: string
 
 export function publicBrand(config: DesktopConfig, configPath: string): PublicBrand {
   const logoPath = resolveConfiguredPath(configPath, config.logo)
+  const defaultAvatarPath = resolveConfiguredPath(configPath, config.defaultAvatar)
   const logoDataUrl = `data:${mimeType(logoPath)};base64,${readFileSync(logoPath).toString('base64')}`
+  const defaultAvatarDataUrl = `data:${mimeType(defaultAvatarPath)};base64,${readFileSync(defaultAvatarPath).toString('base64')}`
   return {
     productName: config.productName,
     displayName: config.displayName,
     tagline: config.tagline,
     logoDataUrl,
+    defaultAvatarDataUrl,
     accentColor: config.accentColor,
     supportEmail: config.supportEmail,
     authMode: 'mock',

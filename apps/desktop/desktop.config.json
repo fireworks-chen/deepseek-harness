@@ -4,6 +4,7 @@
   "displayName": "Agent Studio",
   "tagline": "你的智能工作空间",
   "logo": "assets/logo.svg",
+  "defaultAvatar": "assets/default-avatar.png",
   "appIcon": "assets/icon.icns",
   "accentColor": "#1769e0",
   "supportEmail": "support@example.com",
@@ -13,7 +14,10 @@
     "mock": {
       "email": "demo@example.com",
       "password": "demo123",
-      "displayName": "当前用户",
+      "displayName": "陈志勇",
+      "company": "武汉市宇权通信科技有限公司",
+      "avatarUrl": "",
+      "coins": 211,
       "plan": "本地开发版",
       "permissions": {
         "models": ["deepseek-chat"],

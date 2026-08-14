@@ -2,8 +2,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
+import type { DesktopAccountSnapshot, SettingsRootComponentProps } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
+import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
@@ -30,7 +31,14 @@ function mount({
     { id: 'welcome', order: -100 },
     { id: 'credential', order: 0 },
   ],
-}: { wide?: boolean; onboardingActive?: boolean; rows?: Row[]; steps?: Step[] } = {}) {
+  account,
+}: {
+  wide?: boolean
+  onboardingActive?: boolean
+  rows?: Row[]
+  steps?: Step[]
+  account?: DesktopAccountSnapshot
+} = {}) {
   // Mutable row source standing in for the bound useSections hook; bump()
   // plays a ledger change through the same observable contract.
   let current = rows
@@ -54,6 +62,7 @@ function mount({
     useWorkspaces: unusedHook,
     wide,
     useOnboardingSteps: select => select(steps),
+    accountText: key => en[key],
     useSections: (select) => {
       const [, force] = useState(0)
       useEffect(() => {
@@ -64,6 +73,12 @@ function mount({
       return select(current)
     },
     renderSlot,
+    ...account === undefined
+      ? {}
+      : {
+        loadDesktopAccount: () => Promise.resolve(account),
+        logoutDesktop: () => Promise.resolve(),
+      },
   }
   const view = render(<SettingsRoot {...props} />)
   const bump = (next: Row[]) => {
@@ -94,6 +109,19 @@ describe('SettingsRoot trigger', () => {
   it('hands the rail state to the trigger seat', () => {
     const { renderSlot } = mount({ wide: false })
     expect(renderSlot).toHaveBeenCalledWith('settings.trigger', { wide: false })
+  })
+
+  it('replaces the desktop trigger with the signed-in account and keeps Settings functional', async () => {
+    mount({
+      account: {
+        user: { displayName: 'Chen Zhiyong', company: 'Wuhan Yuquan', coins: 211 },
+        defaultAvatarDataUrl: 'data:image/png;base64,avatar',
+      },
+    })
+    const accountTrigger = await screen.findByRole('button', { name: 'Chen Zhiyong' })
+    fireEvent.click(accountTrigger)
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
   })
 })
 

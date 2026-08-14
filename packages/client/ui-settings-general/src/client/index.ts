@@ -18,7 +18,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {
-  SettingsOnboardingStep, SettingsRootInjected, SettingsSectionRow,
+  DesktopAccountSnapshot, SettingsOnboardingStep, SettingsRootInjected, SettingsSectionRow,
 } from './shell-contract.ts'
 import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
@@ -49,6 +49,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Dictionary namespace owned by this plugin (shell chrome + General copy). */
 const NS = 'settings'
 
+interface DesktopAccountBridge {
+  account(): Promise<DesktopAccountSnapshot | undefined>
+  logout(): Promise<void>
+}
+
 /**
  * Required services (cordis fiber inject). The target slots are declared by
  * ui-settings' apply, whose activation order relative to this one is NOT
@@ -69,6 +74,13 @@ export function apply(ctx: ClientContext): void {
   // locale/change re-registration wiring.
   const t = ctx.locale.bind(NS)
   const connection = ctx.get('connection') as ConnectionHandle
+  const desktop = (globalThis as typeof globalThis & { desktop?: DesktopAccountBridge }).desktop
+  const desktopInjected = desktop === undefined
+    ? {}
+    : {
+      loadDesktopAccount: () => desktop.account(),
+      logoutDesktop: () => desktop.logout(),
+    }
   const documentController = connection.isLoopback
     ? new SettingsDocumentStore(connection.api)
     : undefined
@@ -92,6 +104,8 @@ export function apply(ctx: ClientContext): void {
   let onboardingVersion = -1
   let onboardingSteps: readonly SettingsOnboardingStep[] = []
   const shellInjected = (): SettingsRootInjected => ({
+    ...desktopInjected,
+    accountText: t,
     hooks: {
       sections: {
         getSnapshot: () => {

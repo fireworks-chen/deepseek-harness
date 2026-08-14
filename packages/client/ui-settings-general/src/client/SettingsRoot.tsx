@@ -18,6 +18,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import css from './SettingsRoot.module.css'
+import { AccountMenu } from './AccountMenu.tsx'
 
 /** Nav glyph by section id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
@@ -102,9 +103,13 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
  * @returns the settings shell element tree.
  */
 export function SettingsRoot(props: SettingsRootComponentProps) {
-  const { wide, useSections, useOnboardingSteps, useSessions, renderSlot } = props
+  const {
+    wide, useSections, useOnboardingSteps, useSessions, renderSlot,
+    accountText, loadDesktopAccount, logoutDesktop,
+  } = props
   const [open, setOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
+  const [account, setAccount] = useState<Awaited<ReturnType<NonNullable<typeof loadDesktopAccount>>>>()
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const close = useCallback(() => {
     setOpen(false)
@@ -114,6 +119,16 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     setActiveId(id)
     setOpen(true)
   }, [])
+
+  useEffect(() => {
+    if (loadDesktopAccount === undefined) return
+    let active = true
+    void loadDesktopAccount().then(
+      (value) => { if (active) setAccount(value) },
+      () => { /* Account lookup failure keeps the browser-compatible Settings trigger. */ },
+    )
+    return () => { active = false }
+  }, [loadDesktopAccount])
 
   // The ledger tick keeps the nav rows fresh: registrants re-register with
   // freshly localized text on locale change, and the trigger/header/close
@@ -141,15 +156,27 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
 
   return (
     <>
-      <button
-        type="button"
-        className={clsx(css.trigger, !wide && css.rail)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => { setOpen(true) }}
-      >
-        {renderSlot('settings.trigger', { wide })}
-      </button>
+      {account !== undefined && logoutDesktop !== undefined
+        ? (
+          <AccountMenu
+            wide={wide}
+            account={account}
+            t={accountText}
+            openSettings={() => { setOpen(true) }}
+            logout={logoutDesktop}
+          />
+        )
+        : (
+          <button
+            type="button"
+            className={clsx(css.trigger, !wide && css.rail)}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            onClick={() => { setOpen(true) }}
+          >
+            {renderSlot('settings.trigger', { wide })}
+          </button>
+        )}
       {open && (
         <SettingsPanel
           rows={rows}

@@ -8,7 +8,7 @@ import {
 import { MockAuthProvider, type AuthSession } from './auth.ts'
 import { HarnessBackend, packagedBackendBin } from './backend.ts'
 import { loadDesktopConfig, publicBrand, resolveConfiguredPath } from './config.ts'
-import type { DesktopBootstrap, LoginInput, LoginResult } from './contracts.ts'
+import type { DesktopAccountSnapshot, DesktopBootstrap, LoginInput, LoginResult } from './contracts.ts'
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url))
 const configPath = app.isPackaged
@@ -118,7 +118,12 @@ function restoreSession(): AuthSession | undefined {
   if (!existsSync(path) || !safeStorage.isEncryptionAvailable()) return undefined
   try {
     const restored = JSON.parse(safeStorage.decryptString(readFileSync(path))) as AuthSession
-    if (restored.expiresAt <= Date.now() || !restored.accessToken.startsWith('mock.')) {
+    if (
+      restored.expiresAt <= Date.now()
+      || !restored.accessToken.startsWith('mock.')
+      || typeof restored.user.company !== 'string'
+      || !Number.isSafeInteger(restored.user.coins)
+    ) {
       persistSession(undefined)
       return undefined
     }
@@ -131,6 +136,10 @@ function restoreSession(): AuthSession | undefined {
 
 function installIpc(): void {
   ipcMain.handle('desktop:bootstrap', (): DesktopBootstrap => ({ brand }))
+  ipcMain.handle('desktop:account', (): DesktopAccountSnapshot | undefined => session === undefined
+    ? undefined
+    : { user: session.user, defaultAvatarDataUrl: brand.defaultAvatarDataUrl })
+  ipcMain.handle('desktop:logout', async (): Promise<void> => { await signOut() })
   ipcMain.handle('desktop:login', async (_event, input: unknown): Promise<LoginResult> => {
     if (typeof input !== 'object' || input === null) {
       return { ok: false, message: '登录参数无效' }
