@@ -1,6 +1,6 @@
 # Agent Note: Phone verification login for the desktop shell
 
-Status: proposed
+Status: implemented
 
 English | [中文](2026-08-14-desktop-phone-verification-login.zh.md)
 
@@ -10,9 +10,9 @@ The Electron shell presents an email-and-password form, while the intended clien
 
 The service agreement and privacy policy share one deployment-specific website origin. Repeating the test origin in renderer code would make production packaging error-prone. The account menu also renders Personal profile, Team management, and My coins as non-interactive rows even though they represent future navigation destinations.
 
-## Proposal
+## Decision
 
-Replace the desktop login form with the approved phone-verification layout:
+The desktop login form uses the approved phone-verification layout:
 
 - the heading reads “欢迎登录用户端”, with “登录用户端” using the configured accent color;
 - the subtitle reads “要出海·有货就能出海”;
@@ -30,7 +30,7 @@ Personal profile, Team management, Settings, My coins, and Sign out are all butt
 
 The main process owns configuration, URL validation, mock authentication, session persistence, and external-navigation policy. The preload exposes typed bootstrap, code-request, login, account, and logout operations. The renderer owns field state, validation feedback, the request countdown, legal-link presentation, and submission progress.
 
-The real authentication integration replaces the mock provider behind the same operations. It may add server response fields to the provider implementation, but the renderer continues to consume normalized success and error results.
+The authentication provider interface isolates the renderer from the mock implementation. A network provider can add server response fields internally while the renderer continues to consume normalized success and error results.
 
 ## Error handling
 
@@ -50,17 +50,12 @@ Focused tests cover environment override and fallback URL derivation, invalid or
 
 **Hardcode the test website in the renderer.** Rejected because packaged builds would require source edits to change environments and could ship test policy links by mistake.
 
-## Acceptance criteria
+## Verification
 
-- The login window visually follows the approved phone-verification form and remains usable at the desktop minimum window size.
-- Any non-empty phone and verification code can complete local mock login.
-- Get code is interactive without contacting an external service.
-- Both policy links use the configured HTTPS client origin and open outside Electron.
-- Personal profile, Team management, and My coins are clickable no-op buttons; Settings and Sign out retain their existing behavior.
-- The authentication provider can be replaced without changing the renderer field model.
+Focused tests verify URL derivation and validation, permissive mock credentials, code-request countdown, renderer submission, and account-menu button semantics. Desktop type checking, lint, React diagnostics, package builds, and an assembled Electron run verify the complete login-to-workspace flow.
 
-## Risks
+## Consequences
 
-The permissive mock accepts credentials that production must reject. The mock behavior remains confined to the explicit `mock` provider and must not survive when a network provider is selected.
+The permissive mock accepts credentials that production must reject. The behavior remains confined to the explicit `mock` provider and must be removed when a network provider is selected.
 
 Runtime environment overrides are unavailable when a packaged app is launched without that environment. The validated config fallback therefore remains required for packaged distributions.

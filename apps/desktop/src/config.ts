@@ -4,7 +4,6 @@ import type { PermissionSet, PublicBrand } from './contracts.ts'
 
 export interface MockAuthConfig {
   email: string
-  password: string
   displayName: string
   company: string
   avatarUrl?: string
@@ -23,6 +22,7 @@ export interface DesktopConfig {
   appIcon: string
   accentColor: string
   supportEmail: string
+  clientBaseUrl: string
   auth: {
     provider: 'mock'
     endpoint: string
@@ -71,7 +71,29 @@ function object(value: unknown, owner: string): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
-export function loadDesktopConfig(configPath: string): DesktopConfig {
+function httpsOrigin(value: string, owner: string): string {
+  try {
+    const parsed = new URL(value)
+    if (
+      parsed.protocol !== 'https:'
+      || parsed.username !== ''
+      || parsed.password !== ''
+      || parsed.pathname !== '/'
+      || parsed.search !== ''
+      || parsed.hash !== ''
+    ) {
+      throw new Error('not an HTTPS origin')
+    }
+    return parsed.origin
+  } catch {
+    throw new Error(`desktop config: ${owner} must be an HTTPS origin`)
+  }
+}
+
+export function loadDesktopConfig(
+  configPath: string,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): DesktopConfig {
   const root = object(JSON.parse(readFileSync(configPath, 'utf8')), 'root')
   const auth = object(root.auth, 'auth')
   if (auth.provider !== 'mock') {
@@ -84,6 +106,8 @@ export function loadDesktopConfig(configPath: string): DesktopConfig {
   if (!/^#[0-9a-f]{6}$/i.test(accentColor)) {
     throw new Error('desktop config: accentColor must be a six-digit hex color')
   }
+  const configuredClientBaseUrl = environment.SHOPWIS_CLIENT_BASE_URL?.trim()
+    || requiredString(root, 'clientBaseUrl', 'root')
   return {
     appId: requiredString(root, 'appId', 'root'),
     productName: requiredString(root, 'productName', 'root'),
@@ -94,12 +118,17 @@ export function loadDesktopConfig(configPath: string): DesktopConfig {
     appIcon: requiredString(root, 'appIcon', 'root'),
     accentColor,
     supportEmail: requiredString(root, 'supportEmail', 'root'),
+    clientBaseUrl: httpsOrigin(
+      configuredClientBaseUrl,
+      environment.SHOPWIS_CLIENT_BASE_URL?.trim() === undefined
+        ? 'root.clientBaseUrl'
+        : 'SHOPWIS_CLIENT_BASE_URL',
+    ),
     auth: {
       provider: 'mock',
       endpoint: typeof auth.endpoint === 'string' ? auth.endpoint : '',
       mock: {
         email: requiredString(mock, 'email', 'auth.mock'),
-        password: requiredString(mock, 'password', 'auth.mock'),
         displayName: requiredString(mock, 'displayName', 'auth.mock'),
         company: requiredString(mock, 'company', 'auth.mock'),
         ...avatarUrl === undefined ? {} : { avatarUrl },
@@ -145,7 +174,8 @@ export function publicBrand(config: DesktopConfig, configPath: string): PublicBr
     accentColor: config.accentColor,
     supportEmail: config.supportEmail,
     authMode: 'mock',
-    demoEmail: config.auth.mock.email,
-    demoPassword: config.auth.mock.password,
+    clientBaseUrl: config.clientBaseUrl,
+    userAgreementUrl: `${config.clientBaseUrl}/user-agreement`,
+    privacyPolicyUrl: `${config.clientBaseUrl}/privacy-policy`,
   }
 }

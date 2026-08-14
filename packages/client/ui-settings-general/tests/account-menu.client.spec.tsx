@@ -30,9 +30,13 @@ describe('Electron account menu', () => {
 
     expect(screen.getByRole('dialog', { name: 'Account menu' })).toBeTruthy()
     expect(screen.getByText(account.user.company)).toBeTruthy()
-    expect(screen.getByText('Personal profile')).toBeTruthy()
-    expect(screen.getByText('Team management')).toBeTruthy()
-    expect(screen.getByText('My coins')).toBeTruthy()
+    const personal = screen.getByRole('button', { name: 'Personal profile' })
+    const team = screen.getByRole('button', { name: 'Team management' })
+    const coins = screen.getByRole('button', { name: /My coins/ })
+    fireEvent.click(personal)
+    fireEvent.click(team)
+    fireEvent.click(coins)
+    expect(screen.getByRole('dialog', { name: 'Account menu' })).toBeTruthy()
     expect(screen.getByText('211')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))

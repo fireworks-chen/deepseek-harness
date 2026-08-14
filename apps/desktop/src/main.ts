@@ -8,7 +8,9 @@ import {
 import { MockAuthProvider, type AuthSession } from './auth.ts'
 import { HarnessBackend, packagedBackendBin } from './backend.ts'
 import { loadDesktopConfig, publicBrand, resolveConfiguredPath } from './config.ts'
-import type { DesktopAccountSnapshot, DesktopBootstrap, LoginInput, LoginResult } from './contracts.ts'
+import type {
+  DesktopAccountSnapshot, DesktopBootstrap, LoginInput, LoginResult, VerificationCodeResult,
+} from './contracts.ts'
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url))
 const configPath = app.isPackaged
@@ -121,6 +123,7 @@ function restoreSession(): AuthSession | undefined {
     if (
       restored.expiresAt <= Date.now()
       || !restored.accessToken.startsWith('mock.')
+      || typeof restored.user.phone !== 'string'
       || typeof restored.user.company !== 'string'
       || !Number.isSafeInteger(restored.user.coins)
     ) {
@@ -140,17 +143,30 @@ function installIpc(): void {
     ? undefined
     : { user: session.user, defaultAvatarDataUrl: brand.defaultAvatarDataUrl })
   ipcMain.handle('desktop:logout', async (): Promise<void> => { await signOut() })
+  ipcMain.handle('desktop:request-verification-code', async (_event, input: unknown): Promise<VerificationCodeResult> => {
+    if (typeof input !== 'string' || input.trim() === '') return { ok: false, message: '请输入手机号' }
+    try {
+      const result = await auth.requestVerificationCode(input)
+      return { ok: true, retryAfterSeconds: result.retryAfterSeconds }
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : String(error) }
+    }
+  })
   ipcMain.handle('desktop:login', async (_event, input: unknown): Promise<LoginResult> => {
     if (typeof input !== 'object' || input === null) {
       return { ok: false, message: '登录参数无效' }
     }
     const candidate = input as Record<string, unknown>
-    if (typeof candidate.email !== 'string' || typeof candidate.password !== 'string' || typeof candidate.remember !== 'boolean') {
+    if (
+      typeof candidate.phone !== 'string'
+      || typeof candidate.verificationCode !== 'string'
+      || typeof candidate.remember !== 'boolean'
+    ) {
       return { ok: false, message: '登录参数无效' }
     }
     const loginInput: LoginInput = {
-      email: candidate.email,
-      password: candidate.password,
+      phone: candidate.phone,
+      verificationCode: candidate.verificationCode,
       remember: candidate.remember,
     }
     try {

@@ -84,14 +84,14 @@ export function AccountMenu({ wide, account, t, openSettings, logout }: AccountM
           </div>
 
           <div className={css.items}>
-            <div className={css.infoRow}>
+            <button type="button" className={css.actionRow}>
               <IconUserOutline16 size={16} />
               <span>{t('account.personal')}</span>
-            </div>
-            <div className={css.infoRow}>
+            </button>
+            <button type="button" className={css.actionRow}>
               <IconAgentPresetOutline16 size={16} />
               <span>{t('account.team')}</span>
-            </div>
+            </button>
             <button
               type="button"
               className={css.actionRow}
@@ -103,11 +103,11 @@ export function AccountMenu({ wide, account, t, openSettings, logout }: AccountM
               <IconSettingsOutline16 size={16} />
               <span>{t('account.settings')}</span>
             </button>
-            <div className={css.infoRow}>
+            <button type="button" className={css.actionRow}>
               <IconDataOutline16 size={16} />
               <span>{t('account.coins')}</span>
               <span className={css.coinCount}>{t('account.coins.count').replace('{count}', String(account.user.coins))}</span>
-            </div>
+            </button>
             <div className={css.divider} />
             <button type="button" className={css.actionRow} disabled={signingOut} onClick={() => { void signOut() }}>
               <IconRefreshOutline16 size={16} />

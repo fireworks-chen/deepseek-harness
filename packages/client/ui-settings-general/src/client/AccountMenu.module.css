@@ -138,7 +138,6 @@
   padding: 8px;
 }
 
-.infoRow,
 .actionRow {
   display: flex;
   align-items: center;
@@ -170,7 +169,6 @@
   opacity: 0.6;
 }
 
-.infoRow > svg,
 .actionRow > svg {
   flex: none;
 }

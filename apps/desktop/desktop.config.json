@@ -8,12 +8,12 @@
   "appIcon": "assets/icon.icns",
   "accentColor": "#1769e0",
   "supportEmail": "support@example.com",
+  "clientBaseUrl": "https://client-test.shopwis.cn",
   "auth": {
     "provider": "mock",
     "endpoint": "",
     "mock": {
       "email": "demo@example.com",
-      "password": "demo123",
       "displayName": "陈志勇",
       "company": "武汉市宇权通信科技有限公司",
       "avatarUrl": "",

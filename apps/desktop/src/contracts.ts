@@ -8,6 +8,7 @@ export interface PermissionSet {
 export interface PublicUser {
   id: string
   email: string
+  phone: string
   displayName: string
   company: string
   avatarUrl?: string
@@ -25,8 +26,9 @@ export interface PublicBrand {
   accentColor: string
   supportEmail: string
   authMode: 'mock'
-  demoEmail: string
-  demoPassword: string
+  clientBaseUrl: string
+  userAgreementUrl: string
+  privacyPolicyUrl: string
 }
 
 export interface DesktopBootstrap {
@@ -39,10 +41,14 @@ export interface DesktopAccountSnapshot {
 }
 
 export interface LoginInput {
-  email: string
-  password: string
+  phone: string
+  verificationCode: string
   remember: boolean
 }
+
+export type VerificationCodeResult =
+  | { ok: true; retryAfterSeconds: number }
+  | { ok: false; message: string }
 
 export type LoginResult =
   | { ok: true; user: PublicUser }
@@ -50,6 +56,7 @@ export type LoginResult =
 
 export interface DesktopBridge {
   bootstrap(): Promise<DesktopBootstrap>
+  requestVerificationCode(phone: string): Promise<VerificationCodeResult>
   login(input: LoginInput): Promise<LoginResult>
   account(): Promise<DesktopAccountSnapshot | undefined>
   logout(): Promise<void>
