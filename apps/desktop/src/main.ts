@@ -1,16 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell,
+  app, BrowserWindow, dialog, ipcMain, Menu, net, shell,
   type MenuItemConstructorOptions,
 } from 'electron'
-import { MockAuthProvider, type AuthSession } from './auth.ts'
+import { createDesktopShopwisClient } from './api/shopwis-client.ts'
+import { DesktopAuthApi } from './auth/auth-api.ts'
+import { DesktopAuthService } from './auth/auth-service.ts'
+import { DesktopSessionManager, type AuthSession } from './auth/session-manager.ts'
+import { EncryptedSessionStorage } from './auth/session-storage.ts'
 import { HarnessBackend, packagedBackendBin } from './backend.ts'
 import { loadDesktopConfig, publicBrand, resolveConfiguredPath } from './config.ts'
-import type {
-  DesktopAccountSnapshot, DesktopBootstrap, LoginInput, LoginResult, VerificationCodeResult,
-} from './contracts.ts'
+import { installAccountIpc } from './ipc/account-handlers.ts'
+import { installAuthIpc } from './ipc/auth-handlers.ts'
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url))
 const configPath = app.isPackaged
@@ -21,14 +24,29 @@ const patchPath = app.isPackaged
   : join(packageRoot, 'desktop.cordis.patch.yml')
 const config = loadDesktopConfig(configPath)
 const brand = publicBrand(config, configPath)
-const auth = new MockAuthProvider(config.auth.mock)
 const backend = new HarnessBackend()
 const sessionPath = (): string => join(app.getPath('userData'), 'auth-session.bin')
+const sessions = new DesktopSessionManager(new EncryptedSessionStorage(sessionPath))
 
 let mainWindow: BrowserWindow | undefined
-let session: AuthSession | undefined
 let quitting = false
 let workspaceOrigin: string | undefined
+let expiringSession: Promise<void> | undefined
+let expiryTimer: ReturnType<typeof setTimeout> | undefined
+
+async function expireSession(): Promise<void> {
+  expiringSession ??= signOut().finally(() => { expiringSession = undefined })
+  await expiringSession
+}
+
+const shopwisClient = createDesktopShopwisClient({
+  baseUrl: config.shopwis.authBaseUrl,
+  timeoutMs: config.shopwis.requestTimeoutMs,
+  fetch: (input, init) => net.fetch(String(input), init),
+  sessions,
+  onUnauthorized: expireSession,
+})
+const authentication = new DesktopAuthService(new DesktopAuthApi(shopwisClient))
 
 function rendererIndex(): string {
   return join(packageRoot, 'renderer-dist', 'index.html')
@@ -96,100 +114,57 @@ async function showWorkspace(activeSession: AuthSession): Promise<void> {
     accessToken: activeSession.accessToken,
     onUnexpectedExit: (message) => {
       dialog.showErrorBox(`${config.productName} 后端已停止`, message)
-      session = undefined
-      void showLogin()
+      clearExpiryTimer()
+      sessions.clear()
+      workspaceOrigin = undefined
+      void showLogin().then(installMenu)
     },
   })
   workspaceOrigin = new URL(url).origin
   await mainWindow.loadURL(url)
 }
 
-function persistSession(activeSession: AuthSession | undefined): void {
-  const path = sessionPath()
-  if (activeSession === undefined) {
-    rmSync(path, { force: true })
-    return
-  }
-  if (!safeStorage.isEncryptionAvailable()) return
-  mkdirSync(app.getPath('userData'), { recursive: true })
-  writeFileSync(path, safeStorage.encryptString(JSON.stringify(activeSession)), { mode: 0o600 })
+function clearExpiryTimer(): void {
+  if (expiryTimer !== undefined) clearTimeout(expiryTimer)
+  expiryTimer = undefined
 }
 
-function restoreSession(): AuthSession | undefined {
-  const path = sessionPath()
-  if (!existsSync(path) || !safeStorage.isEncryptionAvailable()) return undefined
-  try {
-    const restored = JSON.parse(safeStorage.decryptString(readFileSync(path))) as AuthSession
-    if (
-      restored.expiresAt <= Date.now()
-      || !restored.accessToken.startsWith('mock.')
-      || typeof restored.user.phone !== 'string'
-      || typeof restored.user.company !== 'string'
-      || !Number.isSafeInteger(restored.user.coins)
-    ) {
-      persistSession(undefined)
-      return undefined
-    }
-    return restored
-  } catch {
-    persistSession(undefined)
-    return undefined
+function scheduleExpiry(activeSession: AuthSession): void {
+  clearExpiryTimer()
+  if (activeSession.expiresAt === undefined) return
+  const remaining = activeSession.expiresAt - Date.now()
+  if (remaining <= 0) {
+    void signOut()
+    return
   }
+  const maximumDelay = 2_147_483_647
+  expiryTimer = setTimeout(() => {
+    if (remaining > maximumDelay) scheduleExpiry(activeSession)
+    else void expireSession()
+  }, Math.min(remaining, maximumDelay))
+}
+
+async function activateWorkspace(activeSession: AuthSession): Promise<void> {
+  await showWorkspace(activeSession)
+  scheduleExpiry(activeSession)
 }
 
 function installIpc(): void {
-  ipcMain.handle('desktop:bootstrap', (): DesktopBootstrap => ({ brand }))
-  ipcMain.handle('desktop:account', (): DesktopAccountSnapshot | undefined => session === undefined
-    ? undefined
-    : { user: session.user, defaultAvatarDataUrl: brand.defaultAvatarDataUrl })
-  ipcMain.handle('desktop:logout', async (): Promise<void> => { await signOut() })
-  ipcMain.handle('desktop:request-verification-code', async (_event, input: unknown): Promise<VerificationCodeResult> => {
-    if (typeof input !== 'string' || input.trim() === '') return { ok: false, message: '请输入手机号' }
-    try {
-      const result = await auth.requestVerificationCode(input)
-      return { ok: true, retryAfterSeconds: result.retryAfterSeconds }
-    } catch (error) {
-      return { ok: false, message: error instanceof Error ? error.message : String(error) }
-    }
-  })
-  ipcMain.handle('desktop:login', async (_event, input: unknown): Promise<LoginResult> => {
-    if (typeof input !== 'object' || input === null) {
-      return { ok: false, message: '登录参数无效' }
-    }
-    const candidate = input as Record<string, unknown>
-    if (
-      typeof candidate.phone !== 'string'
-      || typeof candidate.verificationCode !== 'string'
-      || typeof candidate.remember !== 'boolean'
-    ) {
-      return { ok: false, message: '登录参数无效' }
-    }
-    const loginInput: LoginInput = {
-      phone: candidate.phone,
-      verificationCode: candidate.verificationCode,
-      remember: candidate.remember,
-    }
-    try {
-      const authenticated = await auth.login(loginInput)
-      session = authenticated
-      if (loginInput.remember) persistSession(authenticated)
-      else persistSession(undefined)
-      await showWorkspace(authenticated)
-      installMenu()
-      return { ok: true, user: authenticated.user }
-    } catch (error) {
-      session = undefined
-      persistSession(undefined)
-      await backend.stop()
-      return { ok: false, message: error instanceof Error ? error.message : String(error) }
-    }
+  installAccountIpc({ ipcMain, brand, sessions, logout: signOut })
+  installAuthIpc({
+    ipcMain,
+    auth: authentication,
+    sessions,
+    showWorkspace: activateWorkspace,
+    stopBackend: () => backend.stop(),
+    refreshMenu: installMenu,
   })
 }
 
 async function signOut(): Promise<void> {
-  session = undefined
+  clearExpiryTimer()
+  sessions.clear()
   workspaceOrigin = undefined
-  persistSession(undefined)
   await backend.stop()
   await showLogin()
   installMenu()
@@ -199,7 +174,7 @@ function installMenu(): void {
   const appItems: MenuItemConstructorOptions[] = [
     { role: 'about' },
     { type: 'separator' },
-    ...(session === undefined ? [] : [{ label: '退出登录', click: () => { void signOut() } }]),
+    ...(sessions.current() === undefined ? [] : [{ label: '退出登录', click: () => { void signOut() } }]),
     { type: 'separator' },
     { role: 'quit' },
   ]
@@ -215,16 +190,15 @@ async function start(): Promise<void> {
   app.setName(config.productName)
   installIpc()
   installMenu()
-  session = restoreSession()
-  if (session === undefined) await showLogin()
+  const restored = sessions.restore()
+  if (restored === undefined) await showLogin()
   else {
     try {
-      await showWorkspace(session)
+      await activateWorkspace(restored)
       installMenu()
     } catch (error) {
-      session = undefined
+      sessions.clear()
       workspaceOrigin = undefined
-      persistSession(undefined)
       await backend.stop()
       await showLogin()
       dialog.showErrorBox(`${config.productName} 启动失败`, error instanceof Error ? error.message : String(error))
@@ -241,7 +215,10 @@ else {
     mainWindow.focus()
   })
   app.on('activate', () => {
-    if (mainWindow === undefined) void (session === undefined ? showLogin() : showWorkspace(session))
+    if (mainWindow === undefined) {
+      const active = sessions.current()
+      void (active === undefined ? showLogin() : activateWorkspace(active))
+    }
   })
   app.on('before-quit', (event) => {
     if (quitting) return

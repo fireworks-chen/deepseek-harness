@@ -88,6 +88,18 @@ describe('Electron account menu', () => {
       .toBe(blankAvatar.defaultAvatarDataUrl)
   })
 
+  it('keeps My coins available without rendering a fabricated balance', () => {
+    const withoutBalance: DesktopAccountSnapshot = {
+      ...account,
+      user: { displayName: account.user.displayName, company: account.user.company },
+    }
+    render(<AccountMenu wide account={withoutBalance} t={t} openSettings={vi.fn()} logout={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Chen Zhiyong' }))
+
+    expect(screen.getByRole('button', { name: 'My coins' })).toBeTruthy()
+    expect(screen.queryByText('211')).toBeNull()
+  })
+
   it('locks repeated sign-out calls and reports a rejected logout', async () => {
     const pending = Promise.withResolvers<undefined>()
     const logout = vi.fn(() => pending.promise)

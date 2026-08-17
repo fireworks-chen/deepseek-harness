@@ -33,7 +33,7 @@ export interface DesktopAccountSnapshot {
     displayName: string
     company: string
     avatarUrl?: string
-    coins: number
+    coins?: number
   }
   defaultAvatarDataUrl: string
 }

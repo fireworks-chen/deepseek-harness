@@ -1,17 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { dirname, extname, isAbsolute, join } from 'node:path'
-import type { PermissionSet, PublicBrand } from './contracts.ts'
+import type { PublicBrand } from './contracts.ts'
 
-export interface MockAuthConfig {
-  email: string
-  displayName: string
-  company: string
-  avatarUrl?: string
-  coins: number
-  plan: string
-  permissions: PermissionSet
-}
-
+/** Validated Electron product and Shopwis deployment configuration. */
 export interface DesktopConfig {
   appId: string
   productName: string
@@ -23,10 +14,9 @@ export interface DesktopConfig {
   accentColor: string
   supportEmail: string
   clientBaseUrl: string
-  auth: {
-    provider: 'mock'
-    endpoint: string
-    mock: MockAuthConfig
+  shopwis: {
+    authBaseUrl: string
+    requestTimeoutMs: number
   }
 }
 
@@ -38,28 +28,10 @@ function requiredString(record: Record<string, unknown>, key: string, owner: str
   return value
 }
 
-function stringArray(record: Record<string, unknown>, key: string): string[] {
+function positiveInteger(record: Record<string, unknown>, key: string, owner: string): number {
   const value = record[key]
-  if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) {
-    throw new Error(`desktop config: auth.mock.permissions.${key} must be a string array`)
-  }
-  const items: unknown[] = value
-  return items.map(item => item as string)
-}
-
-function optionalString(record: Record<string, unknown>, key: string): string | undefined {
-  const value = record[key]
-  if (value === undefined || value === '') return undefined
-  if (typeof value !== 'string') {
-    throw new Error(`desktop config: auth.mock.${key} must be a string`)
-  }
-  return value
-}
-
-function nonNegativeInteger(record: Record<string, unknown>, key: string, owner: string): number {
-  const value = record[key]
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`desktop config: ${owner}.${key} must be a non-negative integer`)
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`desktop config: ${owner}.${key} must be a positive integer`)
   }
   return value
 }
@@ -81,33 +53,40 @@ function httpsOrigin(value: string, owner: string): string {
       || parsed.pathname !== '/'
       || parsed.search !== ''
       || parsed.hash !== ''
-    ) {
-      throw new Error('not an HTTPS origin')
-    }
+    ) throw new Error('not an HTTPS origin')
     return parsed.origin
   } catch {
     throw new Error(`desktop config: ${owner} must be an HTTPS origin`)
   }
 }
 
+function configuredOrigin(
+  environment: Readonly<Record<string, string | undefined>>,
+  environmentKey: string,
+  fallback: string,
+  fallbackOwner: string,
+): string {
+  const override = environment[environmentKey]?.trim()
+  return httpsOrigin(override === undefined || override === '' ? fallback : override,
+    override === undefined || override === '' ? fallbackOwner : environmentKey)
+}
+
+/**
+ * Load and validate the desktop product configuration.
+ * @param configPath - desktop.config.json path.
+ * @param environment - deployment overrides for public, authentication, and agent origins.
+ * @returns validated desktop configuration.
+ */
 export function loadDesktopConfig(
   configPath: string,
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ): DesktopConfig {
   const root = object(JSON.parse(readFileSync(configPath, 'utf8')), 'root')
-  const auth = object(root.auth, 'auth')
-  if (auth.provider !== 'mock') {
-    throw new Error(`desktop config: unsupported auth provider ${JSON.stringify(auth.provider)}`)
-  }
-  const mock = object(auth.mock, 'auth.mock')
-  const permissions = object(mock.permissions, 'auth.mock.permissions')
-  const avatarUrl = optionalString(mock, 'avatarUrl')
+  const shopwis = object(root.shopwis, 'shopwis')
   const accentColor = requiredString(root, 'accentColor', 'root')
   if (!/^#[0-9a-f]{6}$/i.test(accentColor)) {
     throw new Error('desktop config: accentColor must be a six-digit hex color')
   }
-  const configuredClientBaseUrl = environment.SHOPWIS_CLIENT_BASE_URL?.trim()
-    || requiredString(root, 'clientBaseUrl', 'root')
   return {
     appId: requiredString(root, 'appId', 'root'),
     productName: requiredString(root, 'productName', 'root'),
@@ -118,29 +97,20 @@ export function loadDesktopConfig(
     appIcon: requiredString(root, 'appIcon', 'root'),
     accentColor,
     supportEmail: requiredString(root, 'supportEmail', 'root'),
-    clientBaseUrl: httpsOrigin(
-      configuredClientBaseUrl,
-      environment.SHOPWIS_CLIENT_BASE_URL?.trim() === undefined
-        ? 'root.clientBaseUrl'
-        : 'SHOPWIS_CLIENT_BASE_URL',
+    clientBaseUrl: configuredOrigin(
+      environment,
+      'SHOPWIS_CLIENT_BASE_URL',
+      requiredString(root, 'clientBaseUrl', 'root'),
+      'root.clientBaseUrl',
     ),
-    auth: {
-      provider: 'mock',
-      endpoint: typeof auth.endpoint === 'string' ? auth.endpoint : '',
-      mock: {
-        email: requiredString(mock, 'email', 'auth.mock'),
-        displayName: requiredString(mock, 'displayName', 'auth.mock'),
-        company: requiredString(mock, 'company', 'auth.mock'),
-        ...avatarUrl === undefined ? {} : { avatarUrl },
-        coins: nonNegativeInteger(mock, 'coins', 'auth.mock'),
-        plan: requiredString(mock, 'plan', 'auth.mock'),
-        permissions: {
-          models: stringArray(permissions, 'models'),
-          tools: stringArray(permissions, 'tools'),
-          skills: stringArray(permissions, 'skills'),
-          plugins: stringArray(permissions, 'plugins'),
-        },
-      },
+    shopwis: {
+      authBaseUrl: configuredOrigin(
+        environment,
+        'SHOPWIS_AUTH_BASE_URL',
+        requiredString(shopwis, 'authBaseUrl', 'shopwis'),
+        'shopwis.authBaseUrl',
+      ),
+      requestTimeoutMs: positiveInteger(shopwis, 'requestTimeoutMs', 'shopwis'),
     },
   }
 }
@@ -156,10 +126,12 @@ function mimeType(path: string): string {
   }
 }
 
+/** Resolve a configured asset relative to desktop.config.json. */
 export function resolveConfiguredPath(configPath: string, configuredPath: string): string {
   return isAbsolute(configuredPath) ? configuredPath : join(dirname(configPath), configuredPath)
 }
 
+/** Build the renderer-safe product configuration without private API origins. */
 export function publicBrand(config: DesktopConfig, configPath: string): PublicBrand {
   const logoPath = resolveConfiguredPath(configPath, config.logo)
   const defaultAvatarPath = resolveConfiguredPath(configPath, config.defaultAvatar)
@@ -173,7 +145,7 @@ export function publicBrand(config: DesktopConfig, configPath: string): PublicBr
     defaultAvatarDataUrl,
     accentColor: config.accentColor,
     supportEmail: config.supportEmail,
-    authMode: 'mock',
+    authMode: 'shopwis',
     clientBaseUrl: config.clientBaseUrl,
     userAgreementUrl: `${config.clientBaseUrl}/user-agreement`,
     privacyPolicyUrl: `${config.clientBaseUrl}/privacy-policy`,

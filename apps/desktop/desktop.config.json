@@ -9,22 +9,8 @@
   "accentColor": "#1769e0",
   "supportEmail": "support@example.com",
   "clientBaseUrl": "https://client-test.shopwis.cn",
-  "auth": {
-    "provider": "mock",
-    "endpoint": "",
-    "mock": {
-      "email": "demo@example.com",
-      "displayName": "陈志勇",
-      "company": "武汉市宇权通信科技有限公司",
-      "avatarUrl": "",
-      "coins": 211,
-      "plan": "本地开发版",
-      "permissions": {
-        "models": ["deepseek-chat"],
-        "tools": ["builtin:*"],
-        "skills": ["builtin:*"],
-        "plugins": ["builtin:*"]
-      }
-    }
+  "shopwis": {
+    "authBaseUrl": "https://client-test.shopwis.cn",
+    "requestTimeoutMs": 15000
   }
 }

@@ -1,20 +1,10 @@
-export interface PermissionSet {
-  models: string[]
-  tools: string[]
-  skills: string[]
-  plugins: string[]
-}
-
 export interface PublicUser {
   id: string
-  email: string
   phone: string
   displayName: string
   company: string
   avatarUrl?: string
-  coins: number
-  plan: string
-  permissions: PermissionSet
+  coins?: number
 }
 
 export interface PublicBrand {
@@ -25,7 +15,7 @@ export interface PublicBrand {
   defaultAvatarDataUrl: string
   accentColor: string
   supportEmail: string
-  authMode: 'mock'
+  authMode: 'shopwis'
   clientBaseUrl: string
   userAgreementUrl: string
   privacyPolicyUrl: string

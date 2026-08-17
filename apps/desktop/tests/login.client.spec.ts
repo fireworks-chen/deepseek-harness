@@ -15,26 +15,17 @@ const brand: PublicBrand = {
   defaultAvatarDataUrl: 'data:image/png;base64,avatar',
   accentColor: '#1769e0',
   supportEmail: 'support@example.com',
-  authMode: 'mock',
+  authMode: 'shopwis',
   clientBaseUrl: 'https://client-test.shopwis.cn',
   userAgreementUrl: 'https://client-test.shopwis.cn/user-agreement',
   privacyPolicyUrl: 'https://client-test.shopwis.cn/privacy-policy',
 }
 
 const user: PublicUser = {
-  id: 'mock_user',
-  email: 'demo@example.com',
+  id: '42',
   phone: '18812345678',
   displayName: '陈志勇',
   company: '武汉市宇权通信科技有限公司',
-  coins: 211,
-  plan: '本地开发版',
-  permissions: {
-    models: ['deepseek-chat'],
-    tools: ['builtin:*'],
-    skills: ['builtin:*'],
-    plugins: ['builtin:*'],
-  },
 }
 
 function installBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridge {

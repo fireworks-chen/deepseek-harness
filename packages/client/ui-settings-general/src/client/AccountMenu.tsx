@@ -106,7 +106,11 @@ export function AccountMenu({ wide, account, t, openSettings, logout }: AccountM
             <button type="button" className={css.actionRow}>
               <IconDataOutline16 size={16} />
               <span>{t('account.coins')}</span>
-              <span className={css.coinCount}>{t('account.coins.count').replace('{count}', String(account.user.coins))}</span>
+              {account.user.coins === undefined ? null : (
+                <span className={css.coinCount}>
+                  {t('account.coins.count').replace('{count}', String(account.user.coins))}
+                </span>
+              )}
             </button>
             <div className={css.divider} />
             <button type="button" className={css.actionRow} disabled={signingOut} onClick={() => { void signOut() }}>
